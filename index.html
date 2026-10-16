@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Build your weekend forecast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1d2b1b; --ink-dim: #4a5b46; --green: #86BC25; --green-d: #5a7f14; --neon: #86EB22;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body { margin: 0; min-height: 100%; color: var(--ink); background: #7DC0EE; font-family: 'Open Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+
+  /* ---- the sky: it changes with the "how was your week" slider ---- */
+  .sky { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #7DC0EE; }
+  .layer { position: absolute; inset: 0; transition: opacity .9s ease; }
+  .sunny { background: linear-gradient(180deg, #7DC0EE 0%, #B9DDF4 46%, #FCE8CD 100%); }
+  .storm { background: linear-gradient(180deg, #38445a 0%, #5a687c 52%, #8793a4 100%); opacity: 0; }
+  .sunbig { position: absolute; right: -70px; top: -70px; width: 300px; height: 300px; animation: spin 90s linear infinite; transition: opacity .9s ease; }
+  .cloud { position: absolute; color: #fff; background: currentColor; border-radius: 999px; opacity: .92; transition: color .9s ease; animation: drift linear infinite; }
+  .cloud::before, .cloud::after { content: ""; position: absolute; background: currentColor; border-radius: 50%; }
+  .cloud.c1 { top: 15%; left: -160px; width: 120px; height: 34px; animation-duration: 70s; }
+  .cloud.c1::before { width: 56px; height: 56px; left: 18px; top: -26px; } .cloud.c1::after { width: 40px; height: 40px; left: 62px; top: -16px; }
+  .cloud.c2 { top: 54%; left: -200px; width: 150px; height: 40px; animation-duration: 95s; animation-delay: -30s; opacity: .8; }
+  .cloud.c2::before { width: 66px; height: 66px; left: 24px; top: -32px; } .cloud.c2::after { width: 48px; height: 48px; left: 82px; top: -20px; }
+  .cloud.c3 { top: 82%; left: -140px; width: 100px; height: 28px; animation-duration: 80s; animation-delay: -55s; opacity: .7; }
+  .cloud.c3::before { width: 46px; height: 46px; left: 14px; top: -22px; } .cloud.c3::after { width: 32px; height: 32px; left: 50px; top: -12px; }
+  .rain { position: absolute; inset: 0; opacity: 0; transition: opacity .9s ease; background: repeating-linear-gradient(105deg, rgba(215,228,242,.38) 0 2px, transparent 2px 18px); background-size: 220px 220px; animation: fall .55s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes drift { from { transform: translateX(0); } to { transform: translateX(calc(100vw + 400px)); } }
+  @keyframes fall { to { background-position: -44px 220px; } }
+
+  main { position: relative; z-index: 1; min-height: 100vh; box-sizing: border-box; padding: 70px 18px calc(env(safe-area-inset-bottom, 0px) + 36px); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .mark { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 18px); left: 18px; display: flex; align-items: center; gap: 9px; padding: 7px 14px 7px 12px; border-radius: 999px; background: rgba(255,255,255,.85); font-size: .85rem; color: var(--ink-dim); }
+  .mark i { width: 10px; height: 10px; border-radius: 50%; background: var(--green); }
+
+  .card { width: min(520px, 100%); box-sizing: border-box; background: rgba(255,255,255,.92); border-radius: 28px; padding: 26px 22px 22px; box-shadow: 0 18px 50px rgba(30,50,80,.25); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); animation: rise .5s ease both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  h1 { margin: 0; font-weight: 300; letter-spacing: -.015em; line-height: 1.1; font-size: clamp(2.1rem, 7vw, 3.1rem); }
+  h2 { margin: 0; font-weight: 600; font-size: 1.45rem; line-height: 1.2; }
+  .sub { margin: 12px 0 0; color: var(--ink-dim); font-size: 1.02rem; line-height: 1.5; }
+  .fine { margin: 14px 0 0; font-size: .82rem; color: var(--ink-dim); }
+  button { font: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+  .btn { color: #11150a; background: var(--green); border: 0; border-radius: 999px; padding: 14px 30px; min-height: 52px; font-size: 1.05rem; font-weight: 700; box-shadow: 0 8px 20px rgba(90,127,20,.28); transition: transform .15s, background .2s; }
+  .btn:hover { background: var(--neon); transform: translateY(-1px); }
+  .btn.ghost { background: rgba(255,255,255,.8); color: var(--ink); border: 1px solid rgba(29,43,27,.25); box-shadow: none; font-weight: 600; }
+  .link { background: none; border: 0; color: var(--ink-dim); text-decoration: underline; text-underline-offset: 4px; min-height: 44px; padding: 8px 12px; font-size: .95rem; }
+  .nav { display: flex; justify-content: space-between; align-items: center; margin-top: 22px; }
+  .center { text-align: center; }
+
+  .name { width: 100%; box-sizing: border-box; margin-top: 18px; padding: 14px 16px; font: inherit; font-size: 1.05rem; border-radius: 16px; border: 1px solid rgba(29,43,27,.25); background: #fff; color: var(--ink); text-align: center; }
+  .dots { display: flex; gap: 8px; margin-bottom: 14px; }
+  .dots i { width: 28px; height: 6px; border-radius: 999px; background: rgba(29,43,27,.14); transition: background .3s; } .dots i.on { background: var(--green); }
+
+  /* sliders */
+  .big { margin: 24px 0 2px; text-align: center; font-size: 2rem; font-weight: 700; letter-spacing: -.01em; }
+  .bigsub { text-align: center; color: var(--ink-dim); min-height: 1.5em; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 14px; border-radius: 999px; margin: 26px 0 8px; background: var(--track); outline-offset: 8px; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 38px; height: 38px; border-radius: 50%; background: #fff; border: 5px solid var(--green); box-shadow: 0 4px 12px rgba(0,0,0,.28); cursor: grab; }
+  input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: #fff; border: 5px solid var(--green); box-shadow: 0 4px 12px rgba(0,0,0,.28); cursor: grab; }
+  #week { --track: linear-gradient(90deg, #56637a, #8da0b6, #cfdbe6, #ffd46b, #ffb300); }
+  #energy { --track: linear-gradient(90deg, #E2584D, #F2A81D, #86BC25); }
+  .scale { display: flex; justify-content: space-between; font-size: .78rem; color: var(--ink-dim); }
+  .battery { display: block; margin: 10px auto 0; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .chip { padding: 11px 18px; min-height: 44px; border-radius: 999px; border: 1.5px solid rgba(29,43,27,.25); background: #fff; color: var(--ink); font-size: 1rem; font-weight: 600; transition: background .15s, border-color .15s, transform .1s; }
+  .chip[aria-pressed="true"] { background: var(--green); border-color: var(--green); transform: scale(1.04); }
+  .count { margin-top: 12px; font-size: .85rem; color: var(--ink-dim); }
+
+  /* result */
+  #result { width: min(540px, 100%); }
+  .rhead { margin-bottom: 4px; } .rhead h2 { font-size: 1.5rem; }
+  .summary { margin: 6px 0 16px; color: var(--ink-dim); line-height: 1.45; }
+  .days { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .day { background: #fff; border-radius: 20px; padding: 14px 10px; text-align: center; border: 1px solid rgba(29,43,27,.08); }
+  .tag { font-size: .76rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--green-d); }
+  .day .ic { display: grid; place-items: center; height: 68px; margin: 6px 0 2px; }
+  .day .ct { font-weight: 700; font-size: .98rem; line-height: 1.25; min-height: 2.5em; }
+  .sec { margin-top: 18px; } .sec .tag { margin-bottom: 8px; }
+  .ch { margin-bottom: 10px; } .ch .l { display: flex; justify-content: space-between; font-size: .95rem; font-weight: 600; }
+  .bar { height: 8px; border-radius: 999px; background: rgba(29,43,27,.1); margin-top: 5px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, #86BC25, #86EB22); transition: width 1s cubic-bezier(.2,.8,.2,1); }
+  .plan { list-style: none; margin: 0; padding: 0; } .plan li { display: grid; grid-template-columns: 96px 1fr; gap: 10px; padding: 9px 0; border-top: 1px solid rgba(29,43,27,.1); font-size: .95rem; line-height: 1.4; } .plan li:first-child { border-top: 0; }
+  .plan b { color: var(--green-d); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; padding-top: 2px; }
+  .adv { margin-top: 16px; padding: 12px 14px; border-radius: 16px; background: #F1F7E4; border-left: 4px solid var(--green); font-size: .95rem; line-height: 1.45; } .adv b { color: var(--green-d); }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 18px; }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { .sunbig, .cloud, .rain, .card { animation: none; } .layer, .cloud, .sunbig, .rain, .bar i { transition-duration: .01s; } }
+</style>
+</head>
+<body>
+<div class="sky" aria-hidden="true">
+  <div class="layer sunny"></div><div class="layer storm" id="storm"></div>
+  <svg class="sunbig" id="sun" viewBox="0 0 200 200"><g stroke="#FFC93C" stroke-width="7" stroke-linecap="round" opacity=".85"><path d="M100 8v26M100 166v26M8 100h26M166 100h26M35 35l18 18M147 147l18 18M35 165l18-18M147 53l18-18"/></g><circle cx="100" cy="100" r="52" fill="#FFE07A"/><circle cx="100" cy="100" r="40" fill="#FFD25A"/></svg>
+  <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+  <div class="rain" id="rain"></div>
+</div>
+
+<main>
+  <div class="mark"><i></i><span>Day 2</span></div>
+
+  <section class="card center" id="intro">
+    <h1>Build your weekend forecast</h1>
+    <p class="sub">Three quick taps, about 20 seconds. Tell the sky how your week went, and we'll build a forecast just for you.</p>
+    <label class="sub" for="name" style="display:block;margin-top:18px">Your name, if you like (optional)</label>
+    <input class="name" id="name" type="text" maxlength="20" autocomplete="off" placeholder="First name">
+    <div style="margin-top:18px"><button class="btn" id="start">Let's go</button></div>
+    <p class="fine">No sign-in. Nothing saved, nothing sent.</p>
+  </section>
+
+  <section class="card" id="steps" hidden>
+    <div class="dots" id="dots"><i></i><i></i><i></i></div>
+    <h2 id="q"></h2><p class="sub" id="qs" style="margin-top:6px"></p>
+
+    <div id="c1">
+      <div class="big" id="weekWord"></div><div class="bigsub" id="weekSub"></div>
+      <input type="range" id="week" min="0" max="4" step="1" value="3" aria-label="How was your week">
+      <div class="scale"><span>Stormy</span><span>Sunny</span></div>
+    </div>
+
+    <div id="c2" hidden>
+      <svg class="battery" id="battery" viewBox="0 0 124 58" width="150" height="70" aria-hidden="true"><rect x="2" y="6" width="104" height="46" rx="10" fill="none" stroke="#1d2b1b" stroke-width="4"/><rect x="108" y="20" width="9" height="18" rx="3" fill="#1d2b1b"/><rect id="bfill" x="8" y="12" width="60" height="34" rx="6" fill="#86BC25"/></svg>
+      <div class="big" id="enWord"></div><div class="bigsub" id="enSub"></div>
+      <input type="range" id="energy" min="0" max="100" step="5" value="60" aria-label="How much energy you have left">
+      <div class="scale"><span>Running on fumes</span><span>Fully charged</span></div>
+    </div>
+
+    <div id="c3" hidden>
+      <div class="chips" id="chips" role="group" aria-label="Pick up to three"></div>
+      <div class="count" id="count"></div>
+    </div>
+
+    <div class="nav"><button class="link" id="back">Back</button><button class="btn" id="next">Next</button></div>
+  </section>
+
+  <section id="result" hidden aria-live="polite">
+    <div class="card" id="rcard">
+      <div class="rhead"><div class="tag">Weekend forecast</div><h2 id="rtitle"></h2></div>
+      <p class="summary" id="summary"></p>
+      <div class="days">
+        <div class="day"><div class="tag">Saturday</div><div class="ic" id="icA"></div><div class="ct" id="ctA"></div></div>
+        <div class="day"><div class="tag">Sunday</div><div class="ic" id="icB"></div><div class="ct" id="ctB"></div></div>
+      </div>
+      <div class="sec"><div class="tag">Chances this weekend</div><div id="chances"></div></div>
+      <div class="sec"><div class="tag">Your weekend plan</div><ul class="plan" id="plan"></ul></div>
+      <div class="adv"><b>Advisory:</b> <span id="adv"></span></div>
+    </div>
+    <div class="row"><button class="btn" id="redo">Start over</button><button class="btn ghost" id="copy">Copy to share</button></div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const rand = (a, b) => Math.floor(a + Math.random() * (b - a + 1));
+  const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const mixHex = (c1, c2, t) => { const p = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)); const a = p(c1), b = p(c2); return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * t).toString(16).padStart(2, '0')).join(''); };
+
+  /* ---------- weather pictures ---------- */
+  const SV = inner => '<svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true">' + inner + '</svg>';
+  const CLOUD = '<path d="M17 48A10 10 0 0 1 18 28A15 15 0 0 1 46 25A11 11 0 0 1 47 48Z" fill="#fff" stroke="#9DB3C8" stroke-width="2.5" stroke-linejoin="round"/>';
+  const RAYS = '<g stroke="#F2A81D" stroke-width="4" stroke-linecap="round"><path d="M32 3v7M32 54v7M3 32h7M54 32h7M11 11l5 5M48 48l5 5M11 53l5-5M48 16l5-5"/></g>';
+  const ICON = {
+    sun: SV(RAYS + '<circle cx="32" cy="32" r="14" fill="#FFD25A"/>'),
+    partly: SV('<g transform="translate(-6,-8) scale(.8)">' + RAYS + '<circle cx="32" cy="32" r="14" fill="#FFD25A"/></g><g transform="translate(6,6) scale(.85)">' + CLOUD + '</g>'),
+    cloud: SV('<g transform="translate(0,4)">' + CLOUD + '</g>'),
+    rain: SV('<g transform="translate(0,-4)">' + CLOUD + '</g><g stroke="#4A9BD9" stroke-width="3.5" stroke-linecap="round"><path d="M22 50l-3 8M33 50l-3 8M44 50l-3 8"/></g>'),
+    rainbow: SV('<g fill="none" stroke-width="5" stroke-linecap="round"><path d="M8 48a24 24 0 0 1 48 0" stroke="#E85D5D"/><path d="M14 48a18 18 0 0 1 36 0" stroke="#F5B82E"/><path d="M20 48a12 12 0 0 1 24 0" stroke="#86BC25"/></g>'),
+    breeze: SV('<g fill="none" stroke="#7FA3C4" stroke-width="3.5" stroke-linecap="round"><path d="M8 24h30a6 6 0 1 0-6-6"/><path d="M8 34h40a6 6 0 1 1-6 6"/><path d="M8 44h22a5 5 0 1 1-5 5"/></g>')
+  };
+
+  /* ---------- the content: everything below depends on the person's answers ---------- */
+  const WEEK = [['Stormy', 'That was a lot.'], ['Heavy', 'Heavy going.'], ['Meh', 'Up and down.'], ['Good', 'Pretty good.'], ['Sunny', 'What a week!']];
+  const ENERGY = [[15, 'Running on fumes', 'Almost empty.'], [40, 'Pretty low', 'Needs a recharge.'], [65, 'Okay-ish', 'Still got something left.'], [85, 'Good', 'Plenty in the tank.'], [101, 'Fully charged', 'Ready for anything.']];
+  const WANTS = ['Sleep', 'Good food', 'Friends', 'Family', 'Nature', 'Movies & shows', 'Music', 'Me-time', 'Short trip', 'Doing nothing'];
+  const CHANCE = {
+    'Sleep': ['Sleeping in', 0], 'Good food': ['Eating something delicious', 0], 'Friends': ['Time with friends', 1], 'Family': ['Time with family', 0],
+    'Nature': ['Fresh air and greenery', 1], 'Movies & shows': ['Watching something good', 0], 'Music': ['Music turned up', 0], 'Me-time': ['Time just for you', 0],
+    'Short trip': ['A little getaway', 1], 'Doing nothing': ['Doing absolutely nothing', 0]
+  };
+  const PLAN = {
+    'Sleep': ['Switch the alarm off. Sleep till your body says stop.', 'Switch the alarm off. Sleep till your body says stop.'],
+    'Good food': ['Eat something you have been craving, slowly, sitting down.', 'Order your favourite and eat it slowly, sitting down.'],
+    'Friends': ['Meet one friend you have not seen in a while.', 'Call a friend. Lying down is allowed.'],
+    'Family': ['Plan one proper meal with family.', 'Sit with family and just chat. No agenda.'],
+    'Nature': ['Take a walk where there are trees or sea. Phone in your pocket.', 'Sit by a window or balcony for 10 minutes and watch the sky.'],
+    'Movies & shows': ['Pick something you have been saving. No scrolling first.', 'Pick one comfort show you have seen before.'],
+    'Music': ['Make a playlist and walk or cook to it.', 'Put on your favourite album and just listen.'],
+    'Me-time': ['Do the thing only you enjoy. Nobody else has to like it.', 'Do something small that is only yours: a bath, a book, a nap.'],
+    'Short trip': ['Go somewhere new, even 30 minutes from home.', 'Plan a trip for later. Looking at pictures counts.'],
+    'Doing nothing': ['Do absolutely nothing for an hour. Properly.', 'Do absolutely nothing for an hour. Properly.']
+  };
+  const FILL = ['Sleep', 'Good food', 'Doing nothing'];
+  const SLOTS = ['Saturday morning', 'Saturday evening', 'Sunday afternoon'];
+  const DAYS = { // [week bucket][energy bucket] -> [Saturday, Sunday]
+    low:  { low: [['Foggy until 10 AM. Do not disturb.', 'cloud'], ['Breezy. Perfect for doing nothing.', 'breeze']],
+            mid: [['Light drizzle. Heavy snacks.', 'rain'], ['Clearing slowly by afternoon', 'partly']],
+            high: [['Rainbow after lunch', 'rainbow'], ['Sunny, with a chance of fun', 'sun']] },
+    mid:  { low: [['Cloudy, but filter coffee is on the way', 'cloud'], ['Breezy. Perfect for doing nothing.', 'breeze']],
+            mid: [['Mostly lazy, clearing by evening', 'partly'], ['Sunny with a sea breeze', 'partly']],
+            high: [['Sunny, with a chance of plans', 'sun'], ['Warm with a chance of adventure', 'partly']] },
+    high: { low: [['Warm, with a chance of a long nap', 'partly'], ['No meetings in sight', 'sun']],
+            mid: [['Sunny, with a chance of biryani', 'sun'], ['Sunny with a sea breeze', 'partly']],
+            high: [['Clear skies. Full battery.', 'sun'], ['Clear skies, with a chance of adventure', 'sun']] }
+  };
+  const SUMMARY = {
+    low:  { low: 'Recovery weather: low pressure, high comfort. Go easy on yourself.', mid: 'A heavy week, but you have a little left in the tank. Spend it on something kind.', high: 'Tough week, strong comeback. Use that spark on something just for fun.' },
+    mid:  { low: 'A quiet weekend ahead: cosy, calm and entirely optional.', mid: 'A balanced weekend: one thing out, one thing in.', high: 'Plenty of energy and no rush. Pick your adventure.' },
+    high: { low: 'Good week, tired you. Rest is the reward.', mid: 'Good vibes with a gentle breeze. Enjoy it at your own pace.', high: 'Clear skies and a full battery. Make it a good one.' }
+  };
+  const ADV_WEEK = { low: 'Be gentle with yourself this weekend.', mid: 'Keep it simple. Say yes to what feels good, and no to the rest.', high: 'Good weeks deserve a proper celebration.' };
+  const ADV_EN = { low: 'One plan is plenty, and resting counts as one.', mid: 'Notifications are optional.', high: 'Spend that energy on something you love.' };
+
+  /* ---------- state ---------- */
+  const S = { name: '', week: 3, energy: 60, wants: [] };
+  let stage = 0, forecast = null;
+  const wBucket = w => w <= 1 ? 'low' : w === 2 ? 'mid' : 'high';
+  const eBucket = e => e < 40 ? 'low' : e < 75 ? 'mid' : 'high';
+  const eWord = e => ENERGY.find(x => e < x[0]);
+
+  function applySky(w) {
+    const storm = (4 - w) / 4;
+    $('storm').style.opacity = storm.toFixed(2);
+    $('sun').style.opacity = (w / 4).toFixed(2);
+    $('rain').style.opacity = w === 0 ? '.9' : w === 1 ? '.45' : '0';
+    const c = mixHex('#7d8999', '#ffffff', w / 4);
+    document.querySelectorAll('.cloud').forEach(el => { el.style.color = c; });
+  }
+  function drawWeek() { const w = S.week; $('weekWord').textContent = WEEK[w][0]; $('weekSub').textContent = WEEK[w][1]; applySky(w); }
+  function drawEnergy() {
+    const e = S.energy, x = eWord(e);
+    $('enWord').textContent = x[1]; $('enSub').textContent = x[2];
+    const f = $('bfill'); f.setAttribute('width', Math.max(4, Math.round(92 * e / 100)));
+    f.setAttribute('fill', e < 25 ? '#E2584D' : e < 55 ? '#F2A81D' : '#86BC25');
+  }
+  function drawCount() {
+    $('count').textContent = S.wants.length === 0 ? 'Tap up to three.' : S.wants.length + ' of 3 picked' + (S.wants.length === 3 ? '. Tap another to swap.' : '.');
+    document.querySelectorAll('.chip').forEach(b => b.setAttribute('aria-pressed', S.wants.indexOf(b.dataset.w) >= 0 ? 'true' : 'false'));
+  }
+
+  const STEP = [null,
+    { q: 'How was your week?', qs: 'Drag the slider and watch the sky.', next: 'Next' },
+    { q: 'How much energy do you have left?', qs: 'Be honest. Nobody is checking.', next: 'Next' },
+    { q: 'What would make your weekend perfect?', qs: 'Pick up to three.', next: 'Build my forecast' }];
+
+  function go(n) {
+    stage = n;
+    $('intro').hidden = n !== 0; $('steps').hidden = !(n >= 1 && n <= 3); $('result').hidden = n !== 4;
+    if (n >= 1 && n <= 3) {
+      $('q').textContent = STEP[n].q; $('qs').textContent = STEP[n].qs; $('next').textContent = STEP[n].next;
+      ['c1', 'c2', 'c3'].forEach((id, i) => { $(id).hidden = i + 1 !== n; });
+      document.querySelectorAll('#dots i').forEach((d, i) => d.classList.toggle('on', i < n));
+      $('back').style.visibility = 'visible';
+      const card = $('steps'); card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
+    }
+    if (n === 4) build();
+  }
+
+  /* ---------- build the personal forecast ---------- */
+  function build() {
+    const wb = wBucket(S.week), eb = eBucket(S.energy), gentle = eb === 'low';
+    const d = DAYS[wb][eb];
+    const wants = S.wants.length ? S.wants.slice() : FILL.slice();
+    const chances = wants.map(k => {
+      const info = CHANCE[k], active = info[1] === 1;
+      return { l: info[0], p: (gentle && active) ? rand(55, 72) : rand(86, 99) };
+    });
+    chances.push({ l: 'Checking Teams', p: rand(1, 9) });
+    const lines = wants.concat(FILL.filter(f => wants.indexOf(f) < 0)).slice(0, 3);
+    const plan = lines.map((k, i) => ({ when: SLOTS[i], text: PLAN[k][gentle ? 1 : 0] }));
+    forecast = {
+      title: S.name ? S.name + "'s weekend forecast" : 'Your weekend forecast',
+      summary: SUMMARY[wb][eb], sat: d[0], sun: d[1], chances, plan,
+      advice: ADV_WEEK[wb] + ' ' + ADV_EN[eb]
+    };
+    render(forecast);
+  }
+
+  function render(f) {
+    $('rtitle').textContent = f.title; $('summary').textContent = f.summary;
+    $('icA').innerHTML = ICON[f.sat[1]]; $('icB').innerHTML = ICON[f.sun[1]];
+    $('ctA').textContent = f.sat[0]; $('ctB').textContent = f.sun[0];
+    $('adv').textContent = f.advice;
+    const box = $('chances'); box.innerHTML = '';
+    f.chances.forEach(c => {
+      const row = document.createElement('div'); row.className = 'ch';
+      const l = document.createElement('div'); l.className = 'l';
+      const a = document.createElement('span'); a.textContent = c.l; const b = document.createElement('span'); b.textContent = c.p + '%';
+      l.appendChild(a); l.appendChild(b);
+      const bar = document.createElement('div'); bar.className = 'bar'; const fill = document.createElement('i'); bar.appendChild(fill);
+      row.appendChild(l); row.appendChild(bar); box.appendChild(row);
+      setTimeout(() => { fill.style.width = c.p + '%'; }, 120);
+    });
+    const ul = $('plan'); ul.innerHTML = '';
+    f.plan.forEach(p => {
+      const li = document.createElement('li'); const b = document.createElement('b'); b.textContent = p.when; const s = document.createElement('span'); s.textContent = p.text;
+      li.appendChild(b); li.appendChild(s); ul.appendChild(li);
+    });
+    $('copy').textContent = 'Copy to share';
+    const card = $('rcard'); card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
+  }
+
+  function shareText(f) {
+    return f.title + '\n' + f.summary + '\n\nSaturday: ' + f.sat[0] + '\nSunday: ' + f.sun[0] + '\n\n' +
+      f.chances.map(c => c.l + ': ' + c.p + '%').join('\n') + '\n\n' + f.plan.map(p => p.when + ': ' + p.text).join('\n') +
+      '\n\nAdvisory: ' + f.advice + '\n(From the AI & Data Chennai Cultural Club)';
+  }
+  async function copy() {
+    const text = shareText(forecast); let ok = false;
+    try { if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); ok = true; } } catch (e) { ok = false; }
+    if (!ok) { try { const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); ok = document.execCommand('copy'); document.body.removeChild(ta); } catch (e) { ok = false; } }
+    $('copy').textContent = ok ? 'Copied!' : 'Copy not available';
+  }
+
+  /* ---------- wire up ---------- */
+  const chips = $('chips');
+  WANTS.forEach(w => { const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.dataset.w = w; b.textContent = w; b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => { const i = S.wants.indexOf(w); if (i >= 0) S.wants.splice(i, 1); else { if (S.wants.length >= 3) S.wants.shift(); S.wants.push(w); } drawCount(); });
+    chips.appendChild(b); });
+  $('week').addEventListener('input', e => { S.week = +e.target.value; drawWeek(); });
+  $('energy').addEventListener('input', e => { S.energy = +e.target.value; drawEnergy(); });
+  $('name').addEventListener('input', e => { S.name = e.target.value.trim().slice(0, 20); });
+  $('start').addEventListener('click', () => { S.name = $('name').value.trim().slice(0, 20); go(1); });
+  $('next').addEventListener('click', () => go(stage + 1));
+  $('back').addEventListener('click', () => go(stage - 1));
+  $('redo').addEventListener('click', () => { S.week = 3; S.energy = 60; S.wants = []; $('week').value = 3; $('energy').value = 60; drawWeek(); drawEnergy(); drawCount(); go(0); });
+  $('copy').addEventListener('click', copy);
+  drawWeek(); drawEnergy(); drawCount();
+})();
+</script>
+</body>
+</html>
